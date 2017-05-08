@@ -88,7 +88,8 @@ ENV/
 
 # Rope project settings
 .ropeproject
-
-/data
-/processed
+*.csv
+*.h5
+*.hdf5
+*.hdf
 /.idea
