@@ -93,3 +93,4 @@ ENV/
 *.hdf5
 *.hdf
 /.idea
+.DS_Store
