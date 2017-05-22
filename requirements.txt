@@ -5,3 +5,4 @@ torchvision
 ipython
 tables
 matplotlib
+pycrayon
