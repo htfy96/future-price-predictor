@@ -8,6 +8,7 @@ import math
 from random import randint
 import torch.utils.data.sampler as sampler
 import torch.utils.data
+import torch.optim
 
 
 class RNNModel(nn.Module):
@@ -76,12 +77,16 @@ def repackage_hidden(h):
 
 criterion = nn.CrossEntropyLoss()
 
-def evaluate(model, loader):
+def evaluate(model, loader, use_cuda=False):
     model.eval()
     d = next(iter(loader))
     hidden = model.init_hidden(len(d[0]))
-    data_var = Variable(d[0].float(), volatile=True)
-    target_var = Variable(target_onehot_to_classnum_tensor(d[1]), volatile=True)
+    if use_cuda:
+        data_var = Variable(d[0].float().cuda(), volatile=True)
+        target_var = Variable(target_onehot_to_classnum_tensor(d[1]).cuda(), volatile=True)
+    else:
+        data_var = Variable(d[0].float(), volatile=True)
+        target_var = Variable(target_onehot_to_classnum_tensor(d[1]), volatile=True)
     output, hidden = model(data_var, hidden)
     return criterion(output, target_var), get_accu(output, d[1])
 
@@ -99,10 +104,10 @@ def get_accu(output_vec, target_vec):
             total_accu += 1.0
     return total_accu / len(output_vec)
 
-def train(model, reader, exp_recorder, bsz=512, lr=0.005):
-    model.train()
-    total_loss = 0
+def train(model, reader, exp_recorder, bsz=512, use_cuda=False):
     start_time = time.time()
+
+    total_loss = 0
     hidden = model.init_hidden(bsz=bsz)
 
     datas_arr = []
@@ -113,42 +118,38 @@ def train(model, reader, exp_recorder, bsz=512, lr=0.005):
     total_loss = 0
     loader = torch.utils.data.DataLoader(dataset=reader, batch_size=bsz, shuffle=True)
     best_accu = 0
+
+    optimizer = torch.optim.Adadelta(model.parameters())
     for i, d in enumerate(loader):
+        model.train()
         batch = i
 
-        data = Variable(d[0].float())
-        targets = Variable(target_onehot_to_classnum_tensor(d[1]))
+        if use_cuda:
+            data = Variable(d[0].float().cuda())
+            targets = Variable(target_onehot_to_classnum_tensor(d[1]).cuda())
+        else:
+            data = Variable(d[0].float())
+            targets = Variable(target_onehot_to_classnum_tensor(d[1]))
 
-        hidden = model.init_hidden(bsz)
-        model.zero_grad()
-        output, hidden = model(data, hidden)
-        #print(output.size())
-        #print(data)
-        #print(output)
-        #print(targets.size())
-        # print(output, targets)
-        loss = criterion(output, targets)
-        loss.backward()
-
-        # utils.clip_grad_norm(model.parameters(), 0.25)
-        for p in model.parameters():
-            p.data.add_(-lr, p.grad.data)
-
-        total_loss += loss.data
-
-        cur_loss = total_loss[0] / 1
-        total_loss = 0
-        elapsed = time.time() - start_time
-        print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | '
-              'loss {:5.2f} | ppl {:8.2f}'.format(
-            0, batch, len(loader), 0.005,
-            elapsed * 1000 / 1, cur_loss, math.exp(cur_loss)))
-        start_time = time.time()
-
-        exp_recorder.add_scalar_value("train_loss", cur_loss)
+        def closure():
+            optimizer.zero_grad()
+            hid = model.init_hidden(bsz)
+            out, hid = model(data, hid)
+            loss2 = criterion(out, targets)
+            loss2.backward()
+            nonlocal start_time
+            elapsed = time.time() - start_time
+            print('| epoch {:3d} | {:5d}/{:5d} batches | lr {:02.2f} | ms/batch {:5.2f} | '
+                  'loss {:5.2f} | ppl {:8.2f}'.format(
+                0, batch, len(loader), 0.005,
+                elapsed * 1000 / 1, loss2.data[0], math.exp(loss2.data[0])))
+            exp_recorder.add_scalar_value("train_loss", loss2.data[0], time.clock() - init_time)
+            start_time = time.time()
+            return loss2
+        optimizer.step(closure)
 
         test_loader = torch.utils.data.DataLoader(dataset=reader, batch_size=bsz, shuffle=True)
-        test_loss, accu = evaluate(model, test_loader)
+        test_loss, accu = evaluate(model, test_loader, use_cuda=use_cuda)
         test_loss = test_loss.data[0]
         print(test_loss, accu)
 

@@ -3,9 +3,19 @@ import model.rnn as rnn
 from pycrayon import CrayonClient
 import datetime
 from torch.utils.data.sampler import RandomSampler
+import argparse
 
-with DBGeneticReader('./processed/DBExport.h5', read_first_k_table=5) as reader:
+
+parser = argparse.ArgumentParser(description='RNN Future predictor')
+parser.add_argument('--data', type=str, default='./processed/m0000.h5', help='location of DB file')
+parser.add_argument('--cuda', action='store_true', help='whether use cuda')
+parser.add_argument('--rec_url', type=str, default='orzserver.intmainreturn0.com', help='TensorBoard address')
+args = parser.parse_args()
+
+with DBGeneticReader(args.data, read_first_k_table=1) as reader:
     model = rnn.RNNModel(64, rnn_len=5)
-    cc = CrayonClient(hostname="orzserver.intmainreturn0.com")
+    if args.cuda:
+        model.cuda()
+    cc = CrayonClient(hostname=args.rec_url)
     exp = cc.create_experiment('DBExportRNN{}'.format(datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y")))
-    rnn.train(model, reader, exp)
+    rnn.train(model, reader, exp, use_cuda=args.cuda)
