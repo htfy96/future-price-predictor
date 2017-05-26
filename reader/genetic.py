@@ -2,8 +2,9 @@ import pandas as pd
 from torch.utils.data import Dataset
 import numpy as np
 
-class DBExportReader(Dataset):
-    def __init__(self, db_h5_file, future_time = 20, lookback = 100, read_first_k_table = -1):
+class DBGeneticReader(Dataset):
+    def __init__(self, db_h5_file, future_time = 20, lookback = 100, read_first_k_table = -1, normalize=True):
+        super(DBGeneticReader, self).__init__()
         self._db = pd.HDFStore(db_h5_file)
         self._future_time = future_time
         self._lookback = lookback
@@ -12,7 +13,10 @@ class DBExportReader(Dataset):
         self._tables = []
         for k in self._db:
             self._db_len += len(self._db[k]) - future_time - lookback
-            self._tables.append(self._db[k])
+            t = self._db[k].iloc[:, 4:].astype('float32')
+            if normalize:
+                t = (t - t.mean()) / (t.std() + 1e-10)
+            self._tables.append(t)
             if read_first_k_table != -1 and len(self._tables) == read_first_k_table:
                 break
 
@@ -21,12 +25,12 @@ class DBExportReader(Dataset):
 
     def _read_from_table(self, t, idx):
         input_start_idx = idx
-        input = t.iloc[input_start_idx:input_start_idx+self._lookback, 4:]
+        input = t.iloc[input_start_idx:input_start_idx+self._lookback, :]
         input['AveragePrice'] = input.apply(lambda x: (x['AskPrice1'] + x['BidPrice1']) / 2, axis = 1)
         last_average_price = input.iloc[-1]['AveragePrice']
 
         result_idx = idx + self._lookback + self._future_time - 1
-        result_row = t.iloc[result_idx, 4:]
+        result_row = t.iloc[result_idx, :]
         result_avgprice = (result_row['AskPrice1'] + result_row['BidPrice1']) / 2
 
         # print('last_avg={} result_Avg={}'.format(last_average_price, result_avgprice))
@@ -59,6 +63,6 @@ class DBExportReader(Dataset):
 
 
 if __name__ == '__main__':
-    with DBExportReader('./processed/DBExport.h5', read_first_k_table=1) as db:
+    with DBGeneticReader('./processed/m0000.h5', read_first_k_table=1) as db:
         for i in range(len(db)):
-            db[i]
+            print(db[i])
