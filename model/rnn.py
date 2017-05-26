@@ -1,14 +1,13 @@
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.autograd import Variable
-import torch.nn.utils as utils
 import torch
 import time
 import math
-from random import randint
+import os
 import torch.utils.data.sampler as sampler
 import torch.utils.data
 import torch.optim
+import datetime
 
 
 class RNNModel(nn.Module):
@@ -104,10 +103,9 @@ def get_accu(output_vec, target_vec):
             total_accu += 1.0
     return total_accu / len(output_vec)
 
-def train(model, reader, exp_recorder, bsz=512, use_cuda=False):
+def train(model, reader, exp_recorder, args, bsz=512, use_cuda=False):
     start_time = time.time()
 
-    total_loss = 0
     hidden = model.init_hidden(bsz=bsz)
 
     datas_arr = []
@@ -115,9 +113,10 @@ def train(model, reader, exp_recorder, bsz=512, use_cuda=False):
 
     init_time = time.clock()
 
-    total_loss = 0
     loader = torch.utils.data.DataLoader(dataset=reader, batch_size=bsz, shuffle=True)
     best_accu = 0
+
+    best_loss = 100000
 
     optimizer = torch.optim.Adadelta(model.parameters())
     for i, d in enumerate(loader):
@@ -130,6 +129,7 @@ def train(model, reader, exp_recorder, bsz=512, use_cuda=False):
         else:
             data = Variable(d[0].float())
             targets = Variable(target_onehot_to_classnum_tensor(d[1]))
+        last_loss = 100000
 
         def closure():
             optimizer.zero_grad()
@@ -145,18 +145,25 @@ def train(model, reader, exp_recorder, bsz=512, use_cuda=False):
                 elapsed * 1000 / 1, loss2.data[0], math.exp(loss2.data[0])))
             exp_recorder.add_scalar_value("train_loss", loss2.data[0], time.clock() - init_time)
             start_time = time.time()
+            nonlocal  last_loss
+            last_loss = loss2.data[0]
             return loss2
         optimizer.step(closure)
 
-        test_loader = torch.utils.data.DataLoader(dataset=reader, batch_size=bsz, shuffle=True)
-        test_loss, accu = evaluate(model, test_loader, use_cuda=use_cuda)
-        test_loss = test_loss.data[0]
-        print(test_loss, accu)
+        if last_loss < best_loss or batch % 10 == 0:
+            best_loss = last_loss
+            test_loader = torch.utils.data.DataLoader(dataset=reader, batch_size=bsz, shuffle=True)
+            test_loss, accu = evaluate(model, test_loader, use_cuda=use_cuda)
+            test_loss = test_loss.data[0]
+            print(test_loss, accu)
+            exp_recorder.add_scalar_value('test_loss', test_loss, time.clock() - init_time)
+            exp_recorder.add_scalar_value('test_accu', accu, time.clock() - init_time)
+            torch.save(model,
+                       os.path.join('saved_model',
+                                    '{}_loss_test_{}_accu_{}_{}.t7'.format(
+                                        args.name, test_loss, accu,
+                                        datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y")
+                                    )))
 
-        if accu > best_accu:
-            best_accu = accu
-
-        exp_recorder.add_scalar_value('test_loss', test_loss, time.clock() - init_time)
-        exp_recorder.add_scalar_value('test_accu', accu, time.clock() - init_time)
         datas_arr.clear()
         targets_arr.clear()

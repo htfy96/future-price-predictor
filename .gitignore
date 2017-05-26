@@ -94,3 +94,6 @@ ENV/
 *.hdf
 /.idea
 .DS_Store
+
+/saved_model
+!.gitkeep
