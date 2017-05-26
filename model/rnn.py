@@ -26,8 +26,8 @@ class RNNModel(nn.Module):
         self.rnn = nn.LSTM(input_size=feature_num, hidden_size=hidden_state, num_layers=rnn_len, batch_first=True)
         # (N * 500 * 128)
         # (N * 128)
-        self.l1 = nn.Linear(hidden_state, hidden_state)
-        self.a1 = nn.Sigmoid()
+        #self.l1 = nn.Linear(hidden_state, hidden_state)
+        # self.a1 = nn.Sigmoid()
         # (N * 128)
 
         # (N * 128)
@@ -40,10 +40,10 @@ class RNNModel(nn.Module):
 
     def init_weights(self):
         self.l0.weight.data.uniform_(-.1, .1)
-        self.l1.weight.data.uniform_(-.1, .1)
+        #self.l1.weight.data.uniform_(-.1, .1)
         self.l2.weight.data.uniform_(-.1, .1)
         self.l0.bias.data.fill_(0)
-        self.l1.bias.data.fill_(0)
+        #self.l1.bias.data.fill_(0)
         self.l2.bias.data.fill_(0)
 
     def forward(self, input, hidden):
@@ -58,8 +58,8 @@ class RNNModel(nn.Module):
         o1_x = o1.resize(input_sz[0], input_sz[1], input_sz[2])
         o2, hidden2 = self.rnn(o1_x, hidden) # N * 100 * 128
         o3 = o2[:, -1, :] # N * 128
-        o4 = self.a1(self.l1(o3))
-        o5 = self.softmax(self.l2(o4))
+        # o4 = self.l1(o3)
+        o5 = self.softmax(self.l2(o3))
         return o5, hidden2
 
     def init_hidden(self, bsz):
