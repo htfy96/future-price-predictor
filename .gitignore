@@ -95,5 +95,4 @@ ENV/
 /.idea
 .DS_Store
 
-/saved_model
-!.gitkeep
+*.t7
