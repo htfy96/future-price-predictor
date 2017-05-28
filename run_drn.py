@@ -8,7 +8,7 @@ import torch
 
 cuda_ava = torch.cuda.is_available()
 
-parser = argparse.ArgumentParser(description='CNN Future predictor')
+parser = argparse.ArgumentParser(description='DRN Future predictor')
 parser.add_argument('--data', type=str, default='./processed/m0000.h5', help='location of DB file')
 parser.add_argument('--cuda', action='store_true', default=True, help='whether use cuda')
 #parser.add_argument('--rec_url', type=str, default='orzserver.intmainreturn0.com', help='TensorBoard address')
@@ -18,9 +18,9 @@ parser.add_argument('--read_old_model', type=str, default=None, help='Path of ol
 args = parser.parse_args()
 
 with DBGR.DBGeneticReader('./processed/m0000.h5', read_first_k_table=args.read_first_k) as db:
-    dataset = []
-    for i in range(320):
-        dataset.append(db[i])
+    #dataset = []
+    #for i in range(320):
+    #    dataset.append(db[i])
     if args.read_old_model is None:
         model = cnn.cnnT2(cnn.ResidualBlock, [2, 2, 2, 2])
         if args.cuda and cuda_ava:
@@ -32,5 +32,5 @@ with DBGR.DBGeneticReader('./processed/m0000.h5', read_first_k_table=args.read_f
     #exp = cc.create_experiment('Future_{}_{}'.format(args.name,
     #                                                 datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y")))
 
-    cnn.train(model, dataset, args, eph=1, use_cuda=args.cuda)
-    #cnn.train(model, db, args, eph=1, use_cuda=args.cuda)
+    #cnn.train(model, dataset, args, eph=1, use_cuda=args.cuda)
+    cnn.train(model, db, args, eph=1, use_cuda=args.cuda)

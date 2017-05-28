@@ -92,8 +92,6 @@ class cnnT2(nn.Module):
         return out
 
 
-
-
 def evaluate(model, testloader, use_cuda=False):
     correct = 0
     total = 0
@@ -151,8 +149,8 @@ def train(model, db, args, bsz=32, eph=1, use_cuda=False):
             if last_loss < best_loss:
                 best_loss = last_loss
                 acc = evaluate(model, trainloader, use_cuda)
-                torch.save(model.state_dict(), os.path.join('saved_model', 'cnnT1_epoch_{}_i_{}_acc_{}.t7'.format(epoch + 1, i, acc)))
+                torch.save(model.state_dict(), os.path.join('saved_model', 'cnnT2_epoch_{}_i_{}_acc_{}.t7'.format(epoch + 1, i, acc)))
     acc = evaluate(model, trainloader, use_cuda)
-    torch.save(model.state_dict(), os.path.join('saved_model', 'cnnT1_all_acc_{}.t7'.format(acc)))
+    torch.save(model.state_dict(), os.path.join('saved_model', 'cnnT2_all_acc_{}.t7'.format(acc)))
 
     print("Finished Training!")
