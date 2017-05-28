@@ -14,6 +14,7 @@ class DBGeneticReader(Dataset):
         for k in self._db:
             self._db_len += len(self._db[k]) - future_time - lookback
             t = self._db[k].iloc[:, 4:].astype('float32')
+            t['AveragePrice'] = (t['AskPrice1'] + t['BidPrice1']) / 2
             if normalize:
                 t = (t - t.mean()) / (t.std() + 1e-10)
             self._tables.append(t)
@@ -26,12 +27,16 @@ class DBGeneticReader(Dataset):
     def _read_from_table(self, t, idx):
         input_start_idx = idx
         input = t.iloc[input_start_idx:input_start_idx+self._lookback, :]
-        input['AveragePrice'] = input.apply(lambda x: (x['AskPrice1'] + x['BidPrice1']) / 2, axis = 1)
         last_average_price = input.iloc[-1]['AveragePrice']
 
+        result_avgprice = last_average_price
         result_idx = idx + self._lookback + self._future_time - 1
-        result_row = t.iloc[result_idx, :]
-        result_avgprice = (result_row['AskPrice1'] + result_row['BidPrice1']) / 2
+        while result_idx < len(t) and t.iloc[result_idx, :]['AveragePrice'] == last_average_price:
+            result_idx += 1
+        if result_idx < len(t):
+            result_avgprice = t.iloc[result_idx, :]['AveragePrice']
+        #result_row = t.iloc[result_idx, :]
+        #result_avgprice = (result_row['AskPrice1'] + result_row['BidPrice1']) / 2
 
         # print('last_avg={} result_Avg={}'.format(last_average_price, result_avgprice))
 
@@ -63,6 +68,6 @@ class DBGeneticReader(Dataset):
 
 
 if __name__ == '__main__':
-    with DBGeneticReader('.././processed/m0000.h5', read_first_k_table=1) as db:
-        for i in range(len(db)):
+    with DBGeneticReader('.././processed/m0000.h5', read_first_k_table=3) as db:
+        for i in range(len(db)-1, -1, -1):
             print(db[i])
