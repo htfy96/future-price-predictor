@@ -6,6 +6,9 @@ from torch.utils.data.sampler import RandomSampler
 import argparse
 import torch
 
+batch_size = 256
+epoch = 1
+
 cuda_ava = torch.cuda.is_available()
 
 parser = argparse.ArgumentParser(description='CNN Future predictor')
@@ -13,7 +16,7 @@ parser.add_argument('--data', type=str, default='./processed/m0000.h5', help='lo
 parser.add_argument('--cuda', action='store_true', default=True, help='whether use cuda')
 #parser.add_argument('--rec_url', type=str, default='orzserver.intmainreturn0.com', help='TensorBoard address')
 parser.add_argument('--name', type=str, default='CNNT1', help='Name of this experiment')
-parser.add_argument('--read_first_k', type=int, default=1, help='Only read first k table')
+parser.add_argument('--read_first_k', type=int, default=-1, help='Only read first k table')
 parser.add_argument('--read_old_model', type=str, default=None, help='Path of old model')
 args = parser.parse_args()
 
@@ -32,5 +35,5 @@ with DBGR.DBGeneticReader('./processed/m0000.h5', read_first_k_table=args.read_f
     #exp = cc.create_experiment('Future_{}_{}'.format(args.name,
     #                                                 datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y")))
 
-    #cnn.train(model, dataset, args, use_cuda=args.cuda)
-    cnn.train(model, db, args, eph=1, use_cuda=args.cuda)
+    #cnn.train(model, dataset, args, bsz=batch_size, eph=epoch, use_cuda=args.cuda)
+    cnn.train(model, db, args, bsz=batch_size, eph=epoch, use_cuda=args.cuda)

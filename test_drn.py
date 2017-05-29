@@ -1,5 +1,5 @@
 import reader.genetic as DBGR
-import model.cnnT1 as cnn
+import model.cnnT2 as drn
 #from pycrayon import CrayonClient
 import datetime
 from torch.utils.data.sampler import RandomSampler
@@ -19,7 +19,7 @@ cuda_ava = torch.cuda.is_available()
 classes = ["drop", "hold", "rise"]
 
 modelPath = "./saved_model/"
-model = cnn.cnnT1()
+model = drn.cnnT2(drn.ResidualBlock, [2, 2, 2, 2])
 if cuda_ava:
     model = model.cuda()
 
@@ -71,7 +71,7 @@ with DBGR.DBGeneticReader('./processed/m0000.h5', read_first_k_table=read_first_
     for parent, dirnames, filenames in os.walk(modelPath):
         for filename in filenames:
             str = re.split("_|\.", filename)
-            if str[0] == "cnnT1":
+            if str[0] == "cnnT2":
                 model.load_state_dict(torch.load(os.path.join(parent, filename)))
                 print(filename)
                 evaluate(model, testloader, use_cuda=True)

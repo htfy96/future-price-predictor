@@ -7,6 +7,7 @@ import torch.utils.data as data_utils
 import numpy as np
 import os
 import reader.genetic as DBGR
+import datetime
 
 cuda_ava = torch.cuda.is_available()
 
@@ -84,10 +85,8 @@ class cnnT2(nn.Module):
         out = self.layer3(out)
         out = self.avg_pool(out)
         out = out.view(out.size(0), -1)
-        print(out.size())
         out = self.fc(out)
         out = self.relu(out)
-        print(out.size())
         out = self.softmax(out)
         return out
 
@@ -149,7 +148,7 @@ def train(model, db, args, bsz=32, eph=1, use_cuda=False):
             if last_loss < best_loss:
                 best_loss = last_loss
                 acc = evaluate(model, trainloader, use_cuda)
-                torch.save(model.state_dict(), os.path.join('saved_model', 'cnnT2_epoch_{}_i_{}_acc_{}.t7'.format(epoch + 1, i, acc)))
+                torch.save(model.state_dict(), os.path.join('saved_model', 'cnnT2_epoch_{}_iter_{}_loss_{}_acc_{}_{}.t7'.format(epoch + 1, i, last_loss, acc, datetime.datetime.now().strftime("%b_%d_%H:%M:%S"))))
     acc = evaluate(model, trainloader, use_cuda)
     torch.save(model.state_dict(), os.path.join('saved_model', 'cnnT2_all_acc_{}.t7'.format(acc)))
 
