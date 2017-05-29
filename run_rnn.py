@@ -17,7 +17,7 @@ parser.add_argument('--read_old_model', type=str, default=None, help='Path of ol
 parser.add_argument('--gpu', type=int, default=2, help='Number of gpu')
 args = parser.parse_args()
 
-with DBGeneticReader(args.data, read_first_k_table=args.read_first_k) as reader:
+with DBGeneticReader(args.data, read_first_k_table=args.read_first_k, two_class=True) as reader:
     with torch.cuda.device(args.gpu):
         if args.read_old_model is None:
             model = rnn.RNNModel(64, rnn_len=20, hidden_state=32)

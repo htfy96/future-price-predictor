@@ -1,14 +1,17 @@
 import pandas as pd
 from torch.utils.data import Dataset
 import numpy as np
+import random
 
 class DBGeneticReader(Dataset):
-    def __init__(self, db_h5_file, future_time = 20, lookback = 100, read_first_k_table = -1, normalize=True):
+    def __init__(self, db_h5_file,
+                 future_time = 20, lookback = 100, read_first_k_table = -1, normalize=True, two_class=False):
         super(DBGeneticReader, self).__init__()
         self._db = pd.HDFStore(db_h5_file)
         self._future_time = future_time
         self._lookback = lookback
         self._db_len = 0
+        self._two_class = two_class
 
         self._tables = []
         for k in self._db:
@@ -40,14 +43,24 @@ class DBGeneticReader(Dataset):
 
         # print('last_avg={} result_Avg={}'.format(last_average_price, result_avgprice))
 
-        # -1, 0, 1
-        cmp_result = int(result_avgprice > last_average_price) - int(result_avgprice < last_average_price)
-        # print('cmp_result=', cmp_result)
-        # 0, 1, 2
-        onehot_idx = cmp_result + 1
+        if self._two_class:
+            if result_avgprice > last_average_price:
+                onehot_idx = 0
+            elif result_avgprice < last_average_price:
+                onehot_idx = 1
+            else:
+                onehot_idx = random.randint(0, 1)
+            result_arr = np.zeros(2)
+            result_arr[onehot_idx] = 1
+        else:
+            # -1, 0, 1
+            cmp_result = int(result_avgprice > last_average_price) - int(result_avgprice < last_average_price)
+            # print('cmp_result=', cmp_result)
+            # 0, 1, 2
+            onehot_idx = cmp_result + 1
+            result_arr = np.zeros(3)
+            result_arr[onehot_idx] = 1
 
-        result_arr = np.zeros(3)
-        result_arr[onehot_idx] = 1
         return input.as_matrix(), result_arr
 
     def __getitem__(self, idx):

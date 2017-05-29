@@ -13,7 +13,7 @@ import datetime
 class RNNModel(nn.Module):
     """
     input: (N * seq_len * feature_num)
-    output: (N, 3)
+    output: (N, 2)
     """
     def __init__(self, batch_size, rnn_len = 5, hidden_state=64, feature_num=29):
         super(RNNModel, self).__init__()
@@ -31,8 +31,8 @@ class RNNModel(nn.Module):
         # (N * 128)
 
         # (N * 128)
-        self.l2 = nn.Linear(hidden_state, 3)
-        # (N * 3)
+        self.l2 = nn.Linear(hidden_state, 2)
+        # (N * 2)
         self.softmax = nn.Softmax()
 
         # (100, 128)
