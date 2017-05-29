@@ -14,17 +14,19 @@ parser.add_argument('--rec_url', type=str, default='orzserver.intmainreturn0.com
 parser.add_argument('--name', type=str, default='', help='Name of this experiment')
 parser.add_argument('--read_first_k', type=int, default=-1, help='Only read first k table')
 parser.add_argument('--read_old_model', type=str, default=None, help='Path of old model')
+parser.add_argument('--gpu', type=int, default=2, help='Number of gpu')
 args = parser.parse_args()
 
 with DBGeneticReader(args.data, read_first_k_table=args.read_first_k) as reader:
-    if args.read_old_model is None:
-        model = rnn.RNNModel(64, rnn_len=5)
-        if args.cuda:
-            model.cuda()
-    else:
-        model = torch.load(args.read_old_model)
+    with torch.cuda.device(args.gpu):
+        if args.read_old_model is None:
+            model = rnn.RNNModel(64, rnn_len=20, hidden_state=32)
+            if args.cuda:
+                model.cuda()
+        else:
+            model = torch.load(args.read_old_model)
 
-    cc = CrayonClient(hostname=args.rec_url)
-    exp = cc.create_experiment('Future_{}_{}'.format(args.name,
+        cc = CrayonClient(hostname=args.rec_url)
+        exp = cc.create_experiment('Future_{}_{}'.format(args.name,
                                                      datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y")))
-    rnn.train(model, reader, exp, args, use_cuda=args.cuda)
+        rnn.train(model, reader, exp, args, use_cuda=args.cuda)

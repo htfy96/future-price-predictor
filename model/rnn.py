@@ -15,7 +15,7 @@ class RNNModel(nn.Module):
     input: (N * seq_len * feature_num)
     output: (N, 3)
     """
-    def __init__(self, batch_size, rnn_len = 5, hidden_state=128, feature_num=29):
+    def __init__(self, batch_size, rnn_len = 5, hidden_state=64, feature_num=29):
         super(RNNModel, self).__init__()
         self.n_layer = rnn_len
         self.nhid = hidden_state
