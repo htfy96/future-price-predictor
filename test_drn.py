@@ -19,7 +19,7 @@ cuda_ava = torch.cuda.is_available()
 classes = ["drop", "hold", "rise"]
 
 modelPath = "./saved_model/"
-model = drn.cnnT2()
+model = drn.cnnT2(drn.ResidualBlock, [2, 2, 2, 2])
 if cuda_ava:
     model = model.cuda()
 
