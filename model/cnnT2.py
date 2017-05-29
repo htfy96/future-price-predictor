@@ -84,10 +84,8 @@ class cnnT2(nn.Module):
         out = self.layer3(out)
         out = self.avg_pool(out)
         out = out.view(out.size(0), -1)
-        print(out.size())
         out = self.fc(out)
         out = self.relu(out)
-        print(out.size())
         out = self.softmax(out)
         return out
 
