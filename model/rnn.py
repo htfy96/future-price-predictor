@@ -1,5 +1,6 @@
 import torch.nn as nn
 from torch.autograd import Variable
+from utils.index_list import SequentialIndexList
 import torch
 import time
 import math
@@ -26,8 +27,8 @@ class RNNModel(nn.Module):
         self.rnn = nn.LSTM(input_size=feature_num, hidden_size=hidden_state, num_layers=rnn_len, batch_first=True)
         # (N * 500 * 128)
         # (N * 128)
-        #self.l1 = nn.Linear(hidden_state, hidden_state)
-        # self.a1 = nn.Sigmoid()
+        self.l1 = nn.Linear(hidden_state, hidden_state)
+        self.a1 = nn.Sigmoid()
         # (N * 128)
 
         # (N * 128)
@@ -40,10 +41,10 @@ class RNNModel(nn.Module):
 
     def init_weights(self):
         self.l0.weight.data.uniform_(-.1, .1)
-        #self.l1.weight.data.uniform_(-.1, .1)
+        self.l1.weight.data.uniform_(-.1, .1)
         self.l2.weight.data.uniform_(-.1, .1)
         self.l0.bias.data.fill_(0)
-        #self.l1.bias.data.fill_(0)
+        self.l1.bias.data.fill_(0)
         self.l2.bias.data.fill_(0)
 
     def forward(self, input, hidden):
@@ -58,8 +59,8 @@ class RNNModel(nn.Module):
         o1_x = o1.resize(input_sz[0], input_sz[1], input_sz[2])
         o2, hidden2 = self.rnn(o1_x, hidden) # N * 100 * 128
         o3 = o2[:, -1, :] # N * 128
-        # o4 = self.l1(o3)
-        o5 = self.softmax(self.l2(o3))
+        o4 = self.l1(o3)
+        o5 = self.softmax(self.l2(o4))
         return o5, hidden2
 
     def init_hidden(self, bsz):
@@ -113,8 +114,12 @@ def train(model, reader, exp_recorder, args, bsz=512, use_cuda=False):
 
     init_time = time.clock()
 
-    loader = torch.utils.data.DataLoader(dataset=reader, batch_size=bsz, shuffle=True)
-    best_accu = 0
+    train_sampler = torch.utils.data.sampler.SubsetRandomSampler(SequentialIndexList(0, int(len(reader) * .7)))
+    loader = torch.utils.data.DataLoader(dataset=reader, batch_size=bsz, shuffle=True, sampler=train_sampler)
+
+    test_sampler = torch.utils.data.sampler.SubsetRandomSampler(
+        SequentialIndexList(int(len(reader)*.7), len(reader) - 1))
+    test_loader = torch.utils.data.DataLoader(dataset=reader, batch_size=bsz, shuffle=True, sampler=test_sampler)
 
     best_loss = 100000
 
@@ -152,7 +157,6 @@ def train(model, reader, exp_recorder, args, bsz=512, use_cuda=False):
 
         if last_loss < best_loss or batch % 10 == 0:
             best_loss = last_loss
-            test_loader = torch.utils.data.DataLoader(dataset=reader, batch_size=bsz, shuffle=True)
             test_loss, accu = evaluate(model, test_loader, use_cuda=use_cuda)
             test_loss = test_loss.data[0]
             print(test_loss, accu)
