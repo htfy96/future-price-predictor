@@ -11,7 +11,7 @@ from utils.index_list import SequentialIndexList
 
 cuda_ava = torch.cuda.is_available()
 
-classes = ["drop", "hold", "rise"]
+classes = ["drop", "rise"]
 
 def vec_to_classnum(onehot):
     return torch.max(onehot, -1)[1][0]
@@ -51,18 +51,18 @@ class ResidualBlock(nn.Module):
 
 
 # ResNet Module
-class cnnT2(nn.Module):
-    def __init__(self, block, layers, num_classes=3):
-        super(cnnT2, self).__init__()
-        self.in_channels = 16
-        self.conv = conv3x3(1, 16)
-        self.bn = nn.BatchNorm2d(16)
+class cnnAlpha(nn.Module):
+    def __init__(self, block, layers, num_classes=2):
+        super(cnnAlpha, self).__init__()
+        self.in_channels = 4
+        self.conv = conv3x3(1, 4)
+        self.bn = nn.BatchNorm2d(4)
         self.relu = nn.ReLU(inplace=True)
-        self.layer1 = self.make_layer(block, 16, layers[0])
-        self.layer2 = self.make_layer(block, 32, layers[0])
-        self.layer3 = self.make_layer(block, 64, layers[1])
+        self.layer1 = self.make_layer(block, 8, layers[0])
+        self.layer2 = self.make_layer(block, 16, layers[1])
+        #self.layer3 = self.make_layer(block, 64, layers[2])
         self.avg_pool = nn.AvgPool2d(8)
-        self.fc = nn.Linear(2304, num_classes)
+        self.fc = nn.Linear(576, num_classes)
         self.softmax = nn.Softmax()
 
     def make_layer(self, block, out_channels, blocks, stride=1):
@@ -84,7 +84,7 @@ class cnnT2(nn.Module):
         out = self.relu(out)
         out = self.layer1(out)
         out = self.layer2(out)
-        out = self.layer3(out)
+        #out = self.layer3(out)
         out = self.avg_pool(out)
         out = out.view(out.size(0), -1)
         out = self.fc(out)
@@ -96,11 +96,11 @@ class cnnT2(nn.Module):
 def evaluate(model, testloader, args, use_cuda=False):
     correct = 0
     total = 0
-    class_correct = list(0. for i in range(3))
-    class_total = list(0. for i in range(3))
+    class_correct = list(0. for i in range(2))
+    class_total = list(0. for i in range(2))
     for i, data in enumerate(testloader, 0):
-        if i == 100:
-            break
+        if i == 20:
+            break;
         inputs, targets = data
         inputs = inputs.unsqueeze(1)
         targets = target_onehot_to_classnum_tensor(targets)
@@ -121,7 +121,7 @@ def evaluate(model, testloader, args, use_cuda=False):
 
     print("Accuracy of the network is: %.5f %%" % (correct / total * 100))
 
-    for i in range(3):
+    for i in range(2):
         if class_total[i] == 0:
             print("Accuracy of %1s : %1s %% (%1d / %1d)" % (classes[i], "NaN", class_correct[i], class_total[i]))
         else:
@@ -133,13 +133,12 @@ def train(model, db, exp, args, use_cuda=False):
     print("Training...")
     init_time = time.clock()
 
-    #trainsampler = data_utils.sampler.SubsetRandomSampler(SequentialIndexList(0, int(len(db) * 0.7)))
-    #trainloader = data_utils.DataLoader(dataset=db, batch_size=args.batch_size, shuffle=True, sampler=trainsampler)
-    #testsampler = data_utils.sampler.SubsetRandomSampler(SequentialIndexList(int(len(db) * 0.7), len(db) - 1))
-    #testloader = data_utils.DataLoader(dataset=db, batch_size=args.batch_size, shuffle=True, sampler=testsampler)
-    trainloader = data_utils.DataLoader(dataset=db, batch_size=args.batch_size, shuffle=True)
+    trainsampler = data_utils.sampler.SubsetRandomSampler(SequentialIndexList(0, int(len(db) * 0.7)))
+    trainloader = data_utils.DataLoader(dataset=db, batch_size=args.batch_size, shuffle=True, sampler=trainsampler)
+    testsampler = data_utils.sampler.SubsetRandomSampler(SequentialIndexList(int(len(db) * 0.7), len(db) - 1))
+    testloader = data_utils.DataLoader(dataset=db, batch_size=args.batch_size, shuffle=True, sampler=testsampler)
     criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+    optimizer = optim.Adam(model.parameters(), lr=1e-4)
     best_loss = 100000
 
     for epoch in range(args.epoch):
@@ -168,13 +167,11 @@ def train(model, db, exp, args, use_cuda=False):
 
             if last_loss < best_loss or i % 100 == 0:
                 best_loss = last_loss
-                #acc = evaluate(model, testloader, args, use_cuda)
-                acc = evaluate(model, trainloader, args, use_cuda)
+                acc = evaluate(model, testloader, args, use_cuda)
                 exp.add_scalar_value('train_loss', last_loss, time.clock() - init_time)
                 exp.add_scalar_value('test_accu', acc, time.clock() - init_time)
-                torch.save(model.state_dict(), os.path.join('saved_model', 'cnnT2_epoch_{}_iter_{}_loss_{}_acc_{}_{}.t7'.format(epoch + 1, i, last_loss, acc, datetime.datetime.now().strftime("%b_%d_%H:%M:%S"))))
-    #acc = evaluate(model, testloader, args, use_cuda)
-    acc = evaluate(model, trainloader, args, use_cuda)
-    torch.save(model.state_dict(), os.path.join('saved_model', 'cnnT2_all_acc_{}.t7'.format(acc)))
+                torch.save(model.state_dict(), os.path.join('saved_model', '{}_epoch_{}_iter_{}_loss_{}_acc_{}_{}.t7'.format(args.name, epoch + 1, i, last_loss, acc, datetime.datetime.now().strftime("%b_%d_%H:%M:%S"))))
+    acc = evaluate(model, testloader, args, use_cuda)
+    torch.save(model.state_dict(), os.path.join('saved_model', '{}_all_acc_{}.t7'.format(args.name, acc)))
 
     print("Finished Training!")
