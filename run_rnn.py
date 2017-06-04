@@ -17,13 +17,17 @@ parser.add_argument('--gpu', type=int, default=3, help='Number of gpu')
 parser.add_argument('--normalize', type=bool, default=False, help='Whether to perform per-table normalize')
 parser.add_argument('--layer', type=int, default=2, help='Number of RNN layer')
 parser.add_argument('--hidden_state', type=int, default=96, help='Number of hidden state')
+parser.add_argument('--var_hidden_state', nargs='+', type=int, default=None,
+                    help='Variable hidden state per layer. len={layer}')
+parser.add_argument('--dropout', type=bool, default=False, help='Whether use dropout')
 args = parser.parse_args()
 
 with DBGeneticReader(args.data, read_first_k_table=args.read_first_k, two_class=True,
                      normalize=args.normalize) as reader:
     with torch.cuda.device(args.gpu):
         if args.read_old_model is None:
-            model = rnn.RNNModel(64, rnn_len=args.layer, hidden_state=args.hidden_state)
+            model = rnn.RNNModel(64, rnn_len=args.layer, hidden_state=args.hidden_state, dropout=args.dropout,
+                                 var_hidden=args.var_hidden_state)
             if args.cuda:
                 model.cuda()
         else:
