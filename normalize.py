@@ -51,7 +51,7 @@ def normalize_file(path):
 
 
 
-if args.file != '':
+if args.file == '':
     for root, dirs, files in os.walk('./processed'):
         for filename in files:
             if filename.endswith('.h5'):
