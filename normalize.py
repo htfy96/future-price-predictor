@@ -13,9 +13,15 @@ args = parser.parse_args()
 def normalize_file(path):
     print('=== Normalize h5 file {}'.format(path))
     with pd.HDFStore(path, complevel=9, complib='blosc') as store:
-        tables = []
+        tables = {}
+        table_list = []
         for k in store:
             print(' -- Processing table {}'.format(k))
+
+            t = store[k]
+            t = t[t['AskVolume1'] < 100000][t['Turnover'] >= 0][t['LastTurnover'] >= 0]
+            t[['Turnover', 'LastTurnover']] = t[['Turnover', 'LastTurnover']].applymap(
+                lambda x: math.log(x + 1))
 
             fill_table = {
                 'AskPrice1': ['AskPrice2', 'AskPrice3', 'AskPrice4', 'AskPrice5'],
@@ -26,16 +32,12 @@ def normalize_file(path):
 
             for source in fill_table:
                 for target in fill_table[source]:
-                    store[k][target] = np.where(store[k][target] == 0, store[k][source], store[k][target])
+                    t[target] = np.where(t[target] == 0, t[source], t[target])
 
-            t = store[k]
-            t = t[t['AskVolume1'] < 100000][t['Turnover'] >= 0][t['LastTurnover'] >= 0]
-            t[['Turnover', 'LastTurnover']] = t[['Turnover', 'LastTurnover']].applymap(
-                lambda x: math.log(x + 1))
+            tables[k] = t.iloc[:, 4:].astype('float32')
+            table_list.append(tables[k])
 
-            tables.append(t.iloc[:, 4:].astype('float32'))
-
-        big_table = pd.concat(tables, copy=False)
+        big_table = pd.concat(table_list, copy=False)
         mean = big_table.mean()
         std = big_table.std()
 
@@ -46,9 +48,10 @@ def normalize_file(path):
         print(std)
         for k in store:
             print(' -- Writing back to table {}'.format(k))
-            store[k].iloc[:, 4:] = (store[k].iloc[:, 4:] - mean) / (std + 0.00001)
-
-
+            t = store[k]
+            t.iloc[:, 4:] = (tables[k] - mean) / (std + 0.00001)
+            t = t.dropna()
+            store[k] = t
 
 
 if args.file == '':
