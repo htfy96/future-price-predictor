@@ -28,8 +28,6 @@ def evaluate(model, testloader, args, use_cuda=False):
     class_correct = list(0. for i in range(2))
     class_total = list(0. for i in range(2))
     for i, data in enumerate(testloader, 0):
-        if i == 100:
-            break
         inputs, targets = data
         inputs = inputs.unsqueeze(1)
         targets = target_onehot_to_classnum_tensor(targets)
@@ -47,14 +45,12 @@ def evaluate(model, testloader, args, use_cuda=False):
             target = targets[i]
             class_correct[target] += c[i]
             class_total[target] += 1
-
-    print("Accuracy of the network is: %.5f %%" % (correct / total * 100))
-
-    for i in range(2):
-        if class_total[i] == 0:
-            print("Accuracy of %1s : %1s %% (%1d / %1d)" % (classes[i], "NaN", class_correct[i], class_total[i]))
-        else:
-            print("Accuracy of %1s : %.5f %% (%1d / %1d)" % (classes[i], class_correct[i] / class_total[i] * 100, class_correct[i], class_total[i]))
+        print("Accuracy of the network is: %.5f %%" % (correct / total * 100))
+        for i in range(2):
+            if class_total[i] == 0:
+                print("Accuracy of %1s : %1s %% (%1d / %1d)" % (classes[i], "NaN", class_correct[i], class_total[i]))
+            else:
+                print("Accuracy of %1s : %.5f %% (%1d / %1d)" % (classes[i], class_correct[i] / class_total[i] * 100, class_correct[i], class_total[i]))
 
     return correct / total
 
@@ -63,9 +59,9 @@ parser.add_argument('--data', type=str, default='./processed/m0000.h5', help='Lo
 parser.add_argument('--cuda', action='store_true', default=True, help='Whether use cuda')
 parser.add_argument('--rec_url', type=str, default='orzserver.intmainreturn0.com', help='TensorBoard address')
 parser.add_argument('--read_first_k', type=int, default=-1, help='Only read first k table')
-parser.add_argument('--test', action='store_true', default=False, help='Rest existing models')
-parser.add_argument('--name', type=str, default='cnnB3', help='Name of this predictor')
-parser.add_argument('--gpu', type=int, default=1, help='GPU ID')
+parser.add_argument('--test', action='store_true', default=True, help='Rest existing models')
+parser.add_argument('--name', type=str, default='cnnB4', help='Name of this predictor')
+parser.add_argument('--gpu', type=int, default=3, help='GPU ID')
 parser.add_argument('--batch_size', type=int, default=256, help='batch size')
 parser.add_argument('--epoch', type=int, default=1, help='epoch number')
 args = parser.parse_args()
@@ -86,8 +82,8 @@ with DBGR.DBGeneticReader(db_h5_file=args.data, read_first_k_table=args.read_fir
                     for parent, dirnames, filenames in os.walk(modelPath):
                         for filename in filenames:
                             str = re.split("_|\.", filename)
-                            if str[0] == args.name:
-                                model.load_state_dict(torch.load(os.path.join(parent, filename)))
+                            if str[0] == args.name and str[1] == "best":
+                                model.load_state_dict(torch.load(os.path.join(parent, filename), map_location={"cuda:1":"cuda:3"}))
                                 print(filename)
                                 evaluate(model, testloader, args, use_cuda=True)
         else:
